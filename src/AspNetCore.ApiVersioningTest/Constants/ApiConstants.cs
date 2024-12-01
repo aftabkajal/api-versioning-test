@@ -1,5 +1,14 @@
 ﻿namespace AspNetCore.ApiVersioningTest.Constants
 {
+    public static class ApiVersions
+    {
+        public const string VERSION_NUMBER = "1.0";
+        public const string MINOR_VERSION_NUMBER = "1.1";
+        public const int MAJOR = 1;
+        public const int MINOR = 1;
+        public const string VERSION = $"v{VERSION_NUMBER}";
+        public const string MINOR_VERSION = $"v{MINOR_VERSION_NUMBER}";
+    }
     /// <summary>
     /// Configuration for CORS policies.
     /// </summary>
@@ -15,17 +24,12 @@
     /// Dynamically retrieves version details from environment variables or defaults to predefined values.
     /// </summary>
     public static class ApiVersionConfiguration
-    {        
+    {
         // Derived versioning information
-        public const string Major = "1";
-        public const string Minor = "1";
-        public const string GroupNameFormat = "'v'VVV";
+        public const string VERSION_TITLE = $"API - {ApiVersions.VERSION}";
 
-        public static readonly string Version = $"v{Major}.0";
-        public static readonly string MinorVersion = $"v{Major}.{Minor}";
-
-        public static readonly string VersionTitle = $"API - {Version}";
-        public static readonly string MinorVersionTitle = $"API - {MinorVersion}";
+        public const string MINOR_VERSION_TITLE = $"API - {ApiVersions.MINOR_VERSION}";
+        public const string GROUP_NAME_FORMAT = "'v'VVV";
     }
 
     /// <summary>

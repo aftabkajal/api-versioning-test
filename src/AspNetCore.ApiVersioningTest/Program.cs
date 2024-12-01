@@ -1,12 +1,13 @@
 using Asp.Versioning;
-using Asp.Versioning.ApiExplorer;
 using AspNetCore.ApiVersioningTest.Constants;
+using AspNetCore.ApiVersioningTest.SwaggerConfig;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddMvc();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
@@ -19,40 +20,54 @@ builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
+var configuration = builder.Configuration;
+
 builder.Services.AddApiVersioning(options =>
 {
-    options.DefaultApiVersion = new ApiVersion(Convert.ToInt32(ApiVersionConfiguration.Major), Convert.ToInt32(ApiVersionConfiguration.Minor));
+    options.DefaultApiVersion = new ApiVersion(ApiVersions.MAJOR, ApiVersions.MINOR);
     options.AssumeDefaultVersionWhenUnspecified = true;
     options.ReportApiVersions = true;
-
-    // Read version from URL segments, headers, or query strings
     options.ApiVersionReader = ApiVersionReader.Combine(
-        new UrlSegmentApiVersionReader(),
-        new HeaderApiVersionReader("x-api-version"),
-        new MediaTypeApiVersionReader("x-api-version"));
+        new UrlSegmentApiVersionReader());
 }).AddApiExplorer(options =>
 {
-    options.GroupNameFormat = ApiVersionConfiguration.GroupNameFormat;
+    options.GroupNameFormat = ApiVersionConfiguration.GROUP_NAME_FORMAT; // e.g: v1.0.0
     options.SubstituteApiVersionInUrl = true;
 });
 
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc(
-                    ApiVersionConfiguration.Version,
+                    ApiVersions.VERSION,
                     new OpenApiInfo
                     {
-                        Title = ApiVersionConfiguration.VersionTitle,
-                        Version = ApiVersionConfiguration.Version,
+                        Title = ApiVersionConfiguration.VERSION_TITLE,
+                        Version = ApiVersions.VERSION,
                     });
 
     c.SwaggerDoc(
-        ApiVersionConfiguration.MinorVersion,
+        ApiVersions.MINOR_VERSION,
         new OpenApiInfo
         {
-            Title = ApiVersionConfiguration.MinorVersionTitle,
-            Version = ApiVersionConfiguration.MinorVersion,
+            Title = ApiVersionConfiguration.MINOR_VERSION_TITLE,
+            Version = ApiVersions.MINOR_VERSION,
         });
+
+    // Add versioning to the path
+    c.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        if (!apiDesc.TryGetMethodInfo(out MethodInfo methodInfo)) return false;
+
+        var versions = methodInfo.DeclaringType?
+            .GetCustomAttributes(true)
+            .OfType<ApiVersionAttribute>()
+            .SelectMany(attr => attr.Versions);
+
+        return versions?.Any(v => $"v{v.ToString()}" == docName) ?? false;
+    });
+
+    // Add API version parameter in Swagger
+    c.OperationFilter<SwaggerVersioningOperationFilter>();
 
     // Include XML comments for all assemblies dynamically
     var baseDirectory = AppContext.BaseDirectory;
@@ -72,25 +87,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-
         c.EnableFilter();
         c.DisplayRequestDuration();
-
-        app.UseSwaggerUI(options =>
-        {
-            var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
-            foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
-            {
-                options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json",
-                    description.GroupName.ToUpperInvariant());
-            }
-        });
-
+        c.SwaggerEndpoint($"/swagger/{ApiVersions.VERSION}/swagger.json", ApiVersionConfiguration.VERSION_TITLE);
+        c.SwaggerEndpoint($"/swagger/{ApiVersions.MINOR_VERSION}/swagger.json", ApiVersionConfiguration.MINOR_VERSION_TITLE);
     });
-
 }
 
 app.UseHttpsRedirection();
+app.UseRouting();
 app.Run();
 
 
